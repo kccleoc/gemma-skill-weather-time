@@ -12,7 +12,7 @@ tags:
 
 ## Purpose
 
-You have access to a live tool that fetches the current local time and weather **for a location the user types in**.
+You have access to a live tool that fetches the current local time and weather for a location the user provides in text.
 
 Always use it before answering any question about:
 
@@ -23,9 +23,12 @@ Always use it before answering any question about:
 
 ## How to Invoke the Skill
 
-Ask the user which city / location they care about if they have not already said it.
+If the user already mentioned a place, extract it and call the skill.
 
-Call the skill with this JSON:
+If the user did not mention a place, ask:
+“Which city or location do you want me to check?”
+
+Pass this JSON to the skill:
 
 ```json
 {
@@ -36,21 +39,23 @@ Call the skill with this JSON:
 Examples:
 
 ```json
+{ "location": "Hong Kong" }
 { "location": "Taipei, Taiwan" }
 { "location": "Tokyo, Japan" }
-{ "location": "New York City, USA" }
 ```
 
 ## What You Receive Back
 
 The skill returns a plain-text context string, for example:
 
-```
-Location: Tokyo, Japan
-Current time: Wednesday, April 9 2026, 3:42 PM (JST, UTC+9)
-Weather: 18°C (64°F), Partly Cloudy
-Humidity: 62% | Wind: 12 km/h NE
-Feels like: 16°C (61°F)
+```text
+Location: Hong Kong
+Current time: Wednesday, April 8 2026, 2:58 PM (HKT, UTC+8)
+Time of day: afternoon
+Weather: 26°C (79°F), Partly Cloudy
+Feels like: 29°C (84°F)
+Humidity: 74%
+Wind: 18 km/h E
 ```
 
 ## How to Answer
@@ -60,10 +65,10 @@ Feels like: 16°C (61°F)
 - Do NOT say you cannot access real-time data. You have the data from the skill.
 - Use natural, conversational language.
 - If the user asks a time-of-day concept like “is it morning?”, reason from the hour in the context.
-- Always mention the timezone if the user might be curious.
+- Mention the timezone when it is useful.
 
 ## Important Rules
 
 - Never guess or make up a time or weather. Always wait for the skill result.
 - Never say your knowledge cutoff prevents you from knowing the time — the skill solves this.
-- If the skill returns an error, tell the user politely that the location might not be recognized and suggest trying a more specific city name.
+- If the skill returns an error, tell the user politely that the location may not have been recognized and suggest trying a more specific place name.
