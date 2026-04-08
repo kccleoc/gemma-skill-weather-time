@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Weather & Time Skill</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 16px;
+      box-sizing: border-box;
+    }
+    .card {
+      background: #1e293b;
+      border-radius: 20px;
+      padding: 28px 24px;
+      max-width: 360px;
+      width: 100%;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    .location {
+      font-size: 13px;
+      color: #94a3b8;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .time-display {
+      font-size: 52px;
+      font-weight: 700;
+      letter-spacing: -2px;
+      color: #f8fafc;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .date-display {
+      font-size: 15px;
+      color: #94a3b8;
+      margin-bottom: 24px;
+    }
+    .divider {
+      border: none;
+      border-top: 1px solid #334155;
+      margin: 0 0 20px;
+    }
+    .weather-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .weather-icon {
+      font-size: 52px;
+      line-height: 1;
+    }
+    .temp-main {
+      font-size: 42px;
+      font-weight: 700;
+      color: #f8fafc;
+      line-height: 1;
+    }
+    .temp-unit {
+      font-size: 18px;
+      color: #94a3b8;
+    }
+    .condition {
+      font-size: 15px;
+      color: #94a3b8;
+      margin-top: 2px;
+    }
+    .details-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .detail-item {
+      background: #0f172a;
+      border-radius: 12px;
+      padding: 12px 14px;
+    }
+    .detail-label {
+      font-size: 11px;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+    .detail-value {
+      font-size: 16px;
+      font-weight: 600;
+      color: #e2e8f0;
+    }
+    .error-msg {
+      color: #f87171;
+      font-size: 14px;
+      text-align: center;
+      padding: 20px 0;
+    }
+    .loading {
+      text-align: center;
+      color: #64748b;
+      font-size: 14px;
+      padding: 20px 0;
+    }
+    .tz-badge {
+      display: inline-block;
+      background: #334155;
+      border-radius: 6px;
+      padding: 2px 8px;
+      font-size: 11px;
+      color: #94a3b8;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+  </style>
+</head>
+<body>
+  <div class="card" id="card">
+    <div class="loading">Fetching location & weather…</div>
+  </div>
+
+  <script>
+    // ─── WMO Weather Code → emoji + label ─────────────────────────────────────
+    function decodeWMO(code) {
+      const map = {
+        0:  ["☀️",  "Clear Sky"],
+        1:  ["🌤️", "Mainly Clear"],
+        2:  ["⛅",  "Partly Cloudy"],
+        3:  ["☁️",  "Overcast"],
+        45: ["🌫️", "Foggy"],
+        48: ["🌫️", "Icy Fog"],
+        51: ["🌦️", "Light Drizzle"],
+        53: ["🌦️", "Drizzle"],
+        55: ["🌧️", "Heavy Drizzle"],
+        61: ["🌧️", "Light Rain"],
+        63: ["🌧️", "Rain"],
+        65: ["🌧️", "Heavy Rain"],
+        71: ["🌨️", "Light Snow"],
+        73: ["🌨️", "Snow"],
+        75: ["❄️",  "Heavy Snow"],
+        77: ["🌨️", "Snow Grains"],
+        80: ["🌦️", "Light Showers"],
+        81: ["🌧️", "Showers"],
+        82: ["⛈️",  "Heavy Showers"],
+        85: ["🌨️", "Snow Showers"],
+        86: ["🌨️", "Heavy Snow Showers"],
+        95: ["⛈️",  "Thunderstorm"],
+        96: ["⛈️",  "Thunderstorm w/ Hail"],
+        99: ["⛈️",  "Severe Thunderstorm"],
+      };
+      return map[code] ?? ["🌡️", "Unknown"];
+    }
+
+    // ─── Format helpers ────────────────────────────────────────────────────────
+    function pad(n) { return String(n).padStart(2, "0"); }
+
+    function formatTime(date) {
+      let h = date.getHours();
+      const m = pad(date.getMinutes());
+      const ampm = h >= 12 ? "PM" : "AM";
+      h = h % 12 || 12;
+      return `${h}:${m} ${ampm}`;
+    }
+
+    function formatDate(date) {
+      const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+      const months = ["January","February","March","April","May","June",
+                      "July","August","September","October","November","December"];
+      return `${days[date.getDay()]}, ${months[date.getMonth()]} ${date.getDate()} ${date.getFullYear()}`;
+    }
+
+    function windDir(deg) {
+      const dirs = ["N","NE","E","SE","S","SW","W","NW"];
+      return dirs[Math.round(deg / 45) % 8];
+    }
+
+    // ─── Reverse geocode via open-meteo's geocoding ────────────────────────────
+    async function reverseGeocode(lat, lon) {
+      try {
+        const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`;
+        const res = await fetch(url, { headers: { "Accept-Language": "en" } });
+        const j = await res.json();
+        const city = j.address?.city || j.address?.town || j.address?.village || j.address?.county || "";
+        const country = j.address?.country || "";
+        return city ? `${city}, ${country}` : country || "Your Location";
+      } catch {
+        return "Your Location";
+      }
+    }
+
+    // ─── Main entry point exposed to the app ──────────────────────────────────
+    window.ai_edge_gallery_get_result = async function(data) {
+      try {
+        // 1. Get device location
+        const position = await new Promise((resolve, reject) => {
+          if (!navigator.geolocation) {
+            reject(new Error("Geolocation not supported on this device."));
+            return;
+          }
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            timeout: 10000,
+            maximumAge: 60000,
+            enableHighAccuracy: false
+          });
+        });
+
+        const lat = position.coords.latitude.toFixed(4);
+        const lon = position.coords.longitude.toFixed(4);
+
+        // 2. Fetch weather from Open-Meteo (no API key needed)
+        const weatherUrl =
+          `https://api.open-meteo.com/v1/forecast` +
+          `?latitude=${lat}&longitude=${lon}` +
+          `&current=temperature_2m,apparent_temperature,relative_humidity_2m,` +
+          `weather_code,wind_speed_10m,wind_direction_10m` +
+          `&temperature_unit=celsius&wind_speed_unit=kmh&timezone=auto`;
+
+        const weatherRes = await fetch(weatherUrl);
+        if (!weatherRes.ok) throw new Error("Weather API error: " + weatherRes.status);
+        const weather = await weatherRes.json();
+
+        const cur = weather.current;
+        const tzName = weather.timezone_abbreviation || weather.timezone || "local";
+        const utcOffset = weather.utc_offset_seconds || 0;
+
+        // 3. Compute local time using the timezone offset from Open-Meteo
+        const nowUtcMs = Date.now();
+        const localMs = nowUtcMs + (utcOffset * 1000) - (new Date().getTimezoneOffset() * 60000);
+        // Use the device's native timezone (the app runs on the device, so Date() IS local)
+        const localDate = new Date();
+
+        const timeStr = formatTime(localDate);
+        const dateStr = formatDate(localDate);
+        const hour = localDate.getHours();
+
+        let timeOfDay = "morning";
+        if (hour >= 12 && hour < 17) timeOfDay = "afternoon";
+        else if (hour >= 17 && hour < 21) timeOfDay = "evening";
+        else if (hour >= 21 || hour < 6) timeOfDay = "night";
+
+        const tempC = Math.round(cur.temperature_2m);
+        const feelsC = Math.round(cur.apparent_temperature);
+        const tempF = Math.round(tempC * 9/5 + 32);
+        const feelsF = Math.round(feelsC * 9/5 + 32);
+        const humidity = cur.relative_humidity_2m;
+        const windSpeed = Math.round(cur.wind_speed_10m);
+        const windDirStr = windDir(cur.wind_direction_10m);
+        const [wxEmoji, wxLabel] = decodeWMO(cur.weather_code);
+
+        // 4. Reverse geocode for human-readable place name
+        const locationName = await reverseGeocode(lat, lon);
+
+        // 5. Build plain-text context for the LLM
+        const contextText =
+          `Current time: ${dateStr}, ${timeStr} (${tzName})\n` +
+          `Time of day: ${timeOfDay}\n` +
+          `Location: ${locationName}\n` +
+          `Weather: ${tempC}°C (${tempF}°F), ${wxLabel}\n` +
+          `Feels like: ${feelsC}°C (${feelsF}°F)\n` +
+          `Humidity: ${humidity}%\n` +
+          `Wind: ${windSpeed} km/h ${windDirStr}`;
+
+        // 6. Render the visual card
+        renderCard({
+          timeStr, dateStr, tzName, locationName,
+          tempC, feelsC, humidity, windSpeed, windDirStr,
+          wxEmoji, wxLabel
+        });
+
+        return JSON.stringify({ result: contextText });
+
+      } catch (err) {
+        const msg = err.message || "Unknown error";
+        document.getElementById("card").innerHTML =
+          `<div class="error-msg">⚠️ ${msg}<br><br>` +
+          `Please allow location access and try again.</div>`;
+        return JSON.stringify({ error: msg });
+      }
+    };
+
+    // ─── Visual card renderer ──────────────────────────────────────────────────
+    function renderCard({ timeStr, dateStr, tzName, locationName,
+                          tempC, feelsC, humidity, windSpeed, windDirStr,
+                          wxEmoji, wxLabel }) {
+      document.getElementById("card").innerHTML = `
+        <div class="location">📍 ${locationName} <span class="tz-badge">${tzName}</span></div>
+        <div class="time-display">${timeStr}</div>
+        <div class="date-display">${dateStr}</div>
+        <hr class="divider">
+        <div class="weather-row">
+          <div class="weather-icon">${wxEmoji}</div>
+          <div>
+            <div class="temp-main">${tempC}°<span class="temp-unit">C</span></div>
+            <div class="condition">${wxLabel}</div>
+          </div>
+        </div>
+        <div class="details-grid">
+          <div class="detail-item">
+            <div class="detail-label">Feels Like</div>
+            <div class="detail-value">${feelsC}°C</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Humidity</div>
+            <div class="detail-value">${humidity}%</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Wind</div>
+            <div class="detail-value">${windSpeed} km/h</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Direction</div>
+            <div class="detail-value">${windDirStr}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    // ─── Auto-run on page load (for testing in a browser) ─────────────────────
+    // The app calls ai_edge_gallery_get_result("{}") itself.
+    // In a plain browser preview, we trigger it automatically.
+    if (!window._calledByApp) {
+      window.ai_edge_gallery_get_result("{}").then(r => console.log("Skill result:", r));
+    }
+  </script>
+
+</body>
+</html>
