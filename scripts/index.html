@@ -10,23 +10,28 @@
 <!-- Gemma Edge Gallery Skill Definition -->
 <script type="application/json" id="skill">
 {
-  "name": "Weather & Time",
-  "description": "Fetch the current weather and local time based on the device location.",
-  "version": "1.0.0",
+  "name": "Weather & Time (manual location)",
+  "description": "Fetch the current weather and local time for a user-provided location.",
+  "version": "1.1.0",
   "tools": [
     {
       "name": "get_weather_and_time",
-      "description": "Fetches the current local time and weather for the user's device location.",
+      "description": "Fetches the current local time and weather for a user-provided location string, such as a city name.",
       "input_schema": {
         "type": "object",
-        "properties": {},
-        "required": []
+        "properties": {
+          "location": {
+            "type": "string",
+            "description": "City or location name, e.g. 'Taipei, Taiwan' or 'Tokyo, Japan'."
+          }
+        },
+        "required": ["location"]
       }
     }
   ]
 }
 </script>
-
+  
 <main>
   <h1>Weather &amp; Time Skill</h1>
 
